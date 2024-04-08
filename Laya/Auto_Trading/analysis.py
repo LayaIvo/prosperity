@@ -15,6 +15,8 @@ for P in products:
     fig, ax = plt.subplots(1, 1)
     ax.plot(vecs[-1], ".")
     fig.savefig(f"Plots/{P}_mid_price.pdf")
+    fig.show()
+
 
 covariance = np.cov(*vecs)
 correlation = covariance[0, 1] / np.sqrt(covariance[0, 0] * covariance[1, 1])
