@@ -5,101 +5,92 @@ import math
 
 from datamodel import Order
 
+products = ("AMETHYSTS", "STARFRUIT")
+
+
+class Parameters:
+    def __init__(self, product):
+        self.std_multiplier = 0.5 if product == "AMETHYSTS" else 0.6
+        self.position_limit = 20
+        self.observe = 10
+        self.alpha = 0.1
+        self.running_mean = None
+        self.running_var = None
+        self.mid_prices = list()
+        return
+
 
 class Trader:
+
+    def __init__(self):
+        return
+
     def run(self, state):
-        print(state.timestamp, end=" ")
         if not state.traderData:
-            tD = {
-                prod: dict(
-                    std_multiplier=0.5,
-                    position_limit=20,
-                    gather_data=10,
-                    alpha=0.1,
-                    run_mean=None,
-                    run_var=None,
-                    run_std=None,
-                    mid_price=list(),
-                )
-                for prod in state.order_depths
+            traderData = {
+                product: Parameters(product) for product in products
             }
-            # tD["AMETHYSTS"]["alpha"] = 0.1
-            # tD["AMETHYSTS"]["std_multiplier"] = 0.5
-            # tD["STARFRUIT"]["alpha"] = 0.1
-            # tD["STARFRUIT"]["std_multiplier"] = 0.5
         else:
-            tD = jp.decode(state.traderData, keys=True)
+            traderData = jp.decode(state.traderData, keys=True)
 
         result = dict()
-        for P in state.order_depths:
-
+        for product in products:
             orders = []
-            order_depth = state.order_depths[P]
 
-            if tD[P]["gather_data"]:
-                print("Gathering Data", end=" ")
-                if order_depth.sell_orders and order_depth.buy_orders:
-                    ask = min(order_depth.sell_orders)
-                    bid = max(order_depth.buy_orders)
-                    mid_price = (ask + bid) / 2
-                    tD[P]["mid_price"].append(mid_price)
-                    tD[P]["gather_data"] -= 1
-                if not tD[P]["gather_data"]:
-                    tD[P]["run_mean"] = stat.mean(tD[P]["mid_price"])
-                    tD[P]["run_var"] = stat.variance(
-                        tD[P]["mid_price"], tD[P]["run_mean"]
-                    )
-                    tD[P]["run_std"] = math.sqrt(tD[P]["run_var"])
-                    print("Finished Gathering", end=" ")
-                    print(
-                        "Mean:",
-                        tD[P]["run_mean"],
-                        "+-",
-                        tD[P]["run_std"],
-                        end=" ",
-                    )
+            tD = traderData[product]
+            order_book = state.order_depths[product]
+
+            ask = min(order_book.sell_orders, default=None)
+            bid = max(order_book.buy_orders, default=None)
+
+            # gather data if we are still in the observation phase
+            if tD.observe:
+                self.gather_data(tD, ask, bid)
                 continue
 
-            position_limit = tD[P]["position_limit"]
-            position = state.position.get(P, 0)
-            std_mult = tD[P]["std_multiplier"]
+            position = state.position.get(product, 0)
+            std_factor = tD.std_multiplier * math.sqrt(tD.running_var)
 
-            if order_depth.sell_orders:
-                ask = min(order_depth.sell_orders)
-                ask_amount = -order_depth.sell_orders[ask]
-                buy_amount = min(ask_amount, position_limit - position)
-                if (
-                    buy_amount
-                    and ask < tD[P]["run_mean"] - std_mult * tD[P]["run_std"]
-                ):
-                    orders.append(Order(P, ask, buy_amount))
-                    print("BUY", P, ask, buy_amount, end=" ")
+            if ask and ask < tD.running_mean - std_factor:
+                ask_amount = -order_book.sell_orders[ask]
+                buy_amount = min(ask_amount, tD.position_limit - position)
+                if buy_amount:
+                    orders.append(Order(product, ask, buy_amount))
 
-            if order_depth.buy_orders:
-                bid = max(order_depth.buy_orders)
-                bid_amount = order_depth.buy_orders[bid]
-                sell_amount = min(bid_amount, position_limit + position)
-                if (
-                    sell_amount
-                    and bid > tD[P]["run_mean"] + std_mult * tD[P]["run_std"]
-                ):
-                    orders.append(Order(P, bid, -sell_amount))
-                    print("SELL", P, bid, sell_amount, end=" ")
+            if bid and bid > tD.running_mean + std_factor:
+                bid_amount = order_book.buy_orders[bid]
+                sell_amount = min(bid_amount, tD.position_limit + position)
+                if sell_amount:
+                    orders.append(Order(product, bid, -sell_amount))
 
-            if order_depth.buy_orders or order_depth.sell_orders:
-                ask = ask if order_depth.sell_orders else tD[P]["run_mean"]
-                bid = bid if order_depth.buy_orders else tD[P]["run_mean"]
-                mid_price = (ask + bid) / 2
-                alpha = tD[P]["alpha"]
-                tD[P]["run_mean"] = (
-                    alpha * mid_price + (1 - alpha) * tD[P]["run_mean"]
-                )
-                tD[P]["run_var"] = (
-                    alpha * (mid_price - tD[P]["run_mean"]) ** 2
-                    + (1 - alpha) * tD[P]["run_var"]
-                )
-                tD[P]["run_std"] = math.sqrt(tD[P]["run_var"])
-                print("Mean:", tD[P]["run_mean"], "+-", tD[P]["run_std"])
-            result[P] = orders
+            # update running mean and variance
+            self.update_running_mean_var(tD, ask, bid)
+            result[product] = orders
 
-        return result, 0, jp.encode(tD, keys=True)
+        return result, 0, jp.encode(traderData, keys=True)
+
+    def gather_data(self, tD, ask, bid):
+        # only gather data if both ask and bid are present in order book
+        if ask and bid:
+            mid_price = (ask + bid) / 2
+            tD.mid_prices.append(mid_price)
+            tD.observe -= 1
+            # calculate mean and variance now that we have enough data
+            if not tD.observe:
+                tD.running_mean = stat.mean(tD.mid_prices)
+                tD.running_var = stat.variance(tD.mid_prices, tD.running_mean)
+        return
+
+    def update_running_mean_var(self, tD, ask, bid):
+        if ask or bid:
+            ask = ask if ask else tD.running_mean
+            bid = bid if bid else tD.running_mean
+            mid_price = (ask + bid) / 2
+            tD.running_mean = (
+                tD.alpha * mid_price + (1 - tD.alpha) * tD.running_mean
+            )
+            tD.running_var = (
+                tD.alpha * (mid_price - tD.running_mean) ** 2
+                + (1 - tD.alpha) * tD.running_var
+            )
+        return
