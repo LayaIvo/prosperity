@@ -12,6 +12,7 @@ products = ("AMETHYSTS", "STARFRUIT")
 
 class Parameters:
     def __init__(self, product):
+        self.product = product
         self.position_limit = 20
         self.observe = 10
         self.alpha = 0.1
@@ -33,11 +34,19 @@ class Parameters:
         print(product)
         print(
             f"{self.alpha=} {self.default_buy_amount=}"
-            " {self.default_sell_amount=}"
-            " {self.inventory_factor=}"
-            " {self.spread_factors=}"
+            f" {self.default_sell_amount=}"
+            f" {self.inventory_factor=}"
+            f" {self.spread_factors=}"
         )
         return
+
+    def __str__(self):
+        return (
+            f"{self.product}_A{self.alpha}_BA{self.default_buy_amount}_IF{self.inventory_factor}_"
+            + "_".join(
+                [k[0] + str(self.spread_factors[k]) for k in sorted(self.spread_factors.keys())]
+            )
+        )
 
 
 class Trader:
@@ -142,8 +151,7 @@ class Trader:
 
         # Calculate final spread
         spread = (
-            tD.spread_factors["base"]
-            + deviation * tD.spread_factors["deviation"]
+            deviation * tD.spread_factors["deviation"]
             + volatility * tD.spread_factors["volatility"]
             + liquidity * tD.spread_factors["liquidity"]
             + market_imbalance * tD.spread_factors["imbalance"]
