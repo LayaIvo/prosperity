@@ -15,16 +15,17 @@ class Parameters:
         self.position_limit = 20
         self.observe = 10
         self.alpha = 0.1
-        self.default_buy_amount = 1
-        self.default_sell_amount = 1
-        self.target_inventory = 0 if product == "AMETHYSTS" else 0
-        self.inventory_factor = 0.05
+        self.default_buy_amount = 5
+        self.default_sell_amount = 5
+        self.target_inventory = 0
+        # if product == "AMETHYSTS" else 0
+        self.inventory_factor = 0.1
         self.spread_factors = dict(
-            base=0.05,
-            deviation=0.5,
-            volatility=0.05,
-            liquidity=0.05,
-            imbalance=0.05,
+            base=0,
+            deviation=1,
+            volatility=0,
+            liquidity=0,
+            imbalance=0,
         )
         self.running_mean = None
         self.running_var = None
@@ -39,9 +40,7 @@ class Trader:
 
     def run(self, state):
         if not state.traderData:
-            traderData = {
-                product: Parameters(product) for product in products
-            }
+            traderData = {product: Parameters(product) for product in products}
         else:
             traderData = jp.decode(state.traderData, keys=True)
 
@@ -71,24 +70,14 @@ class Trader:
             print(f"{dynamic_spread=}")
 
             # Adjust this factor as needed
-            inventory_adjustment = (
-                position - tD.target_inventory
-            ) * tD.inventory_factor
+            inventory_adjustment = (position - tD.target_inventory) * tD.inventory_factor
 
-            bid_price = round(
-                tD.running_mean - (dynamic_spread / 2) - inventory_adjustment
-            )
-            ask_price = round(
-                tD.running_mean + (dynamic_spread / 2) - inventory_adjustment
-            )
+            bid_price = round(tD.running_mean - (dynamic_spread / 2) - inventory_adjustment)
+            ask_price = round(tD.running_mean + (dynamic_spread / 2) - inventory_adjustment)
 
             # Ensure orders respect position limits
-            buy_amount = min(
-                tD.default_buy_amount, tD.position_limit - position
-            )  # Simplified example
-            sell_amount = min(
-                tD.default_sell_amount, tD.position_limit + position
-            )  # Simplified example
+            buy_amount = min(tD.default_buy_amount, tD.position_limit - position)
+            sell_amount = min(tD.default_sell_amount, tD.position_limit + position)
 
             orders.append(Order(product, ask_price, buy_amount))
             orders.append(Order(product, bid_price, -sell_amount))
@@ -116,20 +105,15 @@ class Trader:
             ask = ask if ask else tD.running_mean
             bid = bid if bid else tD.running_mean
             mid_price = (ask + bid) / 2
-            tD.running_mean = (
-                tD.alpha * mid_price + (1 - tD.alpha) * tD.running_mean
-            )
+            tD.running_mean = tD.alpha * mid_price + (1 - tD.alpha) * tD.running_mean
             tD.running_var = (
-                tD.alpha * (mid_price - tD.running_mean) ** 2
-                + (1 - tD.alpha) * tD.running_var
+                tD.alpha * (mid_price - tD.running_mean) ** 2 + (1 - tD.alpha) * tD.running_var
             )
         return
 
     def calculate_spread(self, tD, order_book, market_trades, own_trades):
         recent_prices = [trade.price for trade in market_trades + own_trades]
-        recent_volumes = [
-            trade.quantity for trade in market_trades + own_trades
-        ]
+        recent_volumes = [trade.quantity for trade in market_trades + own_trades]
 
         deviation = math.sqrt(tD.running_var)
 
@@ -141,9 +125,7 @@ class Trader:
 
         # Assess market depth imbalance
         total_buy_orders = sum(order_book.buy_orders.values())
-        total_sell_orders = sum(
-            -amount for amount in order_book.sell_orders.values()
-        )
+        total_sell_orders = sum(-amount for amount in order_book.sell_orders.values())
 
         market_imbalance = abs(total_buy_orders - total_sell_orders) / (
             total_buy_orders + total_sell_orders
