@@ -2,7 +2,7 @@
 
 import random as rd
 
-from Traders import round_0_trader
+from Traders import round_0_trader, round_1_trader_market_making
 
 import datamodel as dm
 
@@ -26,7 +26,8 @@ def main():
 
     products = tuple(dfs.keys())
 
-    trader = round_0_trader.Trader()
+    # trader = round_0_trader.Trader()
+    trader = round_1_trader_market_making.Trader()
 
     profit = {product: [0] for product in products}
 
