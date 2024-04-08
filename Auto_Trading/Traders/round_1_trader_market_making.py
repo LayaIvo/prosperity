@@ -12,16 +12,23 @@ products = ("AMETHYSTS", "STARFRUIT")
 
 class Parameters:
     def __init__(self, product):
-        self.std_multiplier = 0.5 if product == "AMETHYSTS" else 0.5
         self.position_limit = 20
         self.observe = 10
         self.alpha = 0.1
+        self.default_buy_amount = 1
+        self.default_sell_amount = 1
+        self.target_inventory = 0 if product == "AMETHYSTS" else 0
+        self.inventory_factor = 0.05
+        self.spread_factors = dict(
+            base=0.05,
+            deviation=0.5,
+            volatility=0.05,
+            liquidity=0.05,
+            imbalance=0.05,
+        )
         self.running_mean = None
         self.running_var = None
         self.mid_prices = list()
-        self.target_inventory = 0 if product == "AMETHYSTS" else 0
-        self.default_buy = 1
-        self.default_sell = 1
         return
 
 
@@ -55,17 +62,18 @@ class Trader:
 
             position = state.position.get(product, 0)
 
-            dynamic_spread = math.sqrt(tD.running_var)
-            print(dynamic_spread)
-            # dynamic_spread = self.calculate_spread(
-            #     tD,
-            #     order_book,
-            #     state.market_trades[product],
-            #     state.own_trades[product],
-            # )
+            dynamic_spread = self.calculate_spread(
+                tD,
+                order_book,
+                state.market_trades[product],
+                state.own_trades[product],
+            )
+            print(f"{dynamic_spread=}")
 
             # Adjust this factor as needed
-            inventory_adjustment = (position - tD.target_inventory) * 0.05
+            inventory_adjustment = (
+                position - tD.target_inventory
+            ) * tD.inventory_factor
 
             bid_price = round(
                 tD.running_mean - (dynamic_spread / 2) - inventory_adjustment
@@ -76,10 +84,10 @@ class Trader:
 
             # Ensure orders respect position limits
             buy_amount = min(
-                tD.default_buy, tD.position_limit - position
+                tD.default_buy_amount, tD.position_limit - position
             )  # Simplified example
             sell_amount = min(
-                tD.default_sell, tD.position_limit + position
+                tD.default_sell_amount, tD.position_limit + position
             )  # Simplified example
 
             orders.append(Order(product, ask_price, buy_amount))
@@ -117,20 +125,13 @@ class Trader:
             )
         return
 
-    def calculate_spread(self, traderData, order_book):
-        """
-        Calculate the spread based on volatility, liquidity, and market depth.
-
-        :param recent_prices: A list of recent prices for the product.
-        :param recent_volumes: A list of recent trade volumes for the product.
-        :return: A calculated spread value.
-        """
-        recent_prices = [
-            trade.price for trade in state.market_trades[product]
-        ]
+    def calculate_spread(self, tD, order_book, market_trades, own_trades):
+        recent_prices = [trade.price for trade in market_trades + own_trades]
         recent_volumes = [
-            trade.quantity for trade in state.market_trades[product]
+            trade.quantity for trade in market_trades + own_trades
         ]
+
+        deviation = math.sqrt(tD.running_var)
 
         # Calculate volatility as the standard deviation of the recent prices
         volatility = np.std(recent_prices)
@@ -143,31 +144,18 @@ class Trader:
         total_sell_orders = sum(
             -amount for amount in order_book.sell_orders.values()
         )
+
         market_imbalance = abs(total_buy_orders - total_sell_orders) / (
             total_buy_orders + total_sell_orders
         )
 
-        # Base spread - could start with a fixed minimum spread
-        base_spread = 0.01  # 1% spread as an example
-
-        # Adjust spread based on volatility (this factor could be tuned)
-        volatility_factor = volatility * 0.05
-
-        # Adjust spread based on liquidity
-        # (higher volumes lead to lower spread)
-        liquidity_factor = (
-            0.05 / liquidity if liquidity > 0 else 0.1
-        )  # Arbitrary example factors
-
-        # Adjust spread for market depth imbalance
-        imbalance_factor = market_imbalance * 0.05  # Arbitrary example factor
-
         # Calculate final spread
         spread = (
-            base_spread
-            + volatility_factor
-            + liquidity_factor
-            + imbalance_factor
+            tD.spread_factors["base"]
+            + deviation * tD.spread_factors["deviation"]
+            + volatility * tD.spread_factors["volatility"]
+            + liquidity * tD.spread_factors["liquidity"]
+            + market_imbalance * tD.spread_factors["imbalance"]
         )
 
         return spread
