@@ -9,23 +9,24 @@ from datamodel import Order
 
 products = ("AMETHYSTS", "STARFRUIT")
 
-
+#"AMETHYSTS"=779   IF = 0.01, BA = 20, d=0.25 i=0.1
+#"STARFRUIT"=514   IF = 0.01, BA = 1, d=0.25 i=0.1
 class Parameters:
     def __init__(self, product):
         self.product = product
         self.position_limit = 20
         self.observe = 10
         self.alpha = 0.1
-        self.default_buy_amount = 10 if product == "AMETHYSTS" else 1
-        self.default_sell_amount = 10 if product == "AMETHYSTS" else 1
+        self.default_buy_amount = 20 if product == "AMETHYSTS" else 1
+        self.default_sell_amount = 20 if product == "AMETHYSTS" else 1
         self.target_inventory = 0 if product == "AMETHYSTS" else 0
-        self.inventory_factor = 0.05 if product == "AMETHYSTS" else 0.05
+        self.inventory_factor = 0.01 if product == "AMETHYSTS" else 0.01
         self.spread_factors = dict(
             base=0,
             deviation=0.25,
-            volatility=0.5,
-            liquidity=0.05,
-            imbalance=0.05,
+            volatility=0,
+            liquidity=0,
+            imbalance=0.1,
 
         )
         self.running_mean = None
@@ -65,7 +66,7 @@ class Trader:
             traderData = jp.decode(state.traderData, keys=True)
 
         result = dict()
-        for product in ["AMETHYSTS"]:
+        for product in ["STARFRUIT"]:
             orders = []
 
             tD = traderData[product]

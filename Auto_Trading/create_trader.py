@@ -4,7 +4,7 @@ from pathlib import Path
 
 from Traders import round_1_trader_market_making
 
-product = "AMETHYSTS"
+product = "STARFRUIT"
 
 params = round_1_trader_market_making.Parameters(product)
 
