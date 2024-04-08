@@ -2,14 +2,14 @@
 
 import random as rd
 
-import empty_trader as et
+import Traders
 
 import datamodel as dm
 
 
-td = ""
-trader = et.Trader()
+trader = Traders.round_0_trader.Trader()
 
+td = ""
 for _ in range(50):
     ods = dict()
     for a in ["A", "B"]:
@@ -28,4 +28,4 @@ for _ in range(50):
         {"A": 0, "B": 0},
         dict(),
     )
-    _, _, td = trader.run(TS)
+    orders, _, td = trader.run(TS)
