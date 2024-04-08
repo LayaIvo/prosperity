@@ -16,8 +16,8 @@ class Parameters:
         self.position_limit = 20
         self.observe = 10
         self.alpha = 0.1
-        self.default_buy_amount = 10 if product == "AMETHYSTS" else 1
-        self.default_sell_amount = 10 if product == "AMETHYSTS" else 1
+        self.default_buy_amount = 5 if product == "AMETHYSTS" else 1
+        self.default_sell_amount = 5 if product == "AMETHYSTS" else 1
         self.target_inventory = 0 if product == "AMETHYSTS" else 0
         self.inventory_factor = 0.05 if product == "AMETHYSTS" else 0.05
         self.spread_factors = dict(
@@ -42,10 +42,8 @@ class Parameters:
 
     def __str__(self):
         return (
-            f"{self.product[0]}A{self.alpha}"
-            + f"BA{self.default_buy_amount}"
-            + f"IF{self.inventory_factor}"
-            + "".join(
+            f"{self.product}_A{self.alpha}_BA{self.default_buy_amount}_IF{self.inventory_factor}_"
+            + "_".join(
                 [k[0] + str(self.spread_factors[k]) for k in sorted(self.spread_factors.keys())]
             )
         )

@@ -25,7 +25,7 @@ class Parameters:
             deviation=0.25,
             volatility=0.5,
             liquidity=0.05,
-            imbalance=0.05,
+            imbalance=0.5,
 
         )
         self.running_mean = None
@@ -42,10 +42,8 @@ class Parameters:
 
     def __str__(self):
         return (
-            f"{self.product[0]}A{self.alpha}"
-            + f"BA{self.default_buy_amount}"
-            + f"IF{self.inventory_factor}"
-            + "".join(
+            f"{self.product}_A{self.alpha}_BA{self.default_buy_amount}_IF{self.inventory_factor}_"
+            + "_".join(
                 [k[0] + str(self.spread_factors[k]) for k in sorted(self.spread_factors.keys())]
             )
         )
