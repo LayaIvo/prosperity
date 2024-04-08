@@ -15,12 +15,12 @@ class Parameters:
         self.position_limit = 20
         self.observe = 10
         self.alpha = 0.1
-        self.default_buy_amount = 1
-        self.default_sell_amount = 1
+        self.default_buy_amount = 20 if product == "AMETHYSTS" else 1
+        self.default_sell_amount = 20 if product == "AMETHYSTS" else 1
         self.target_inventory = 0 if product == "AMETHYSTS" else 0
-        self.inventory_factor = 0.05
+        self.inventory_factor = 0.05 if product == "AMETHYSTS" else 0.05
         self.spread_factors = dict(
-            base=0.05,
+            base=0,
             deviation=0.5,
             volatility=0.05,
             liquidity=0.05,
@@ -65,30 +65,20 @@ class Trader:
             dynamic_spread = self.calculate_spread(
                 tD,
                 order_book,
-                state.market_trades[product],
-                state.own_trades[product],
+                state.market_trades.get(product, []),
+                state.own_trades.get(product, []),
             )
             print(f"{dynamic_spread=}")
 
             # Adjust this factor as needed
-            inventory_adjustment = (
-                position - tD.target_inventory
-            ) * tD.inventory_factor
+            inventory_adjustment = (position - tD.target_inventory) * tD.inventory_factor
 
-            bid_price = round(
-                tD.running_mean - (dynamic_spread / 2) - inventory_adjustment
-            )
-            ask_price = round(
-                tD.running_mean + (dynamic_spread / 2) - inventory_adjustment
-            )
+            bid_price = round(tD.running_mean - (dynamic_spread / 2) - inventory_adjustment)
+            ask_price = round(tD.running_mean + (dynamic_spread / 2) - inventory_adjustment)
 
             # Ensure orders respect position limits
-            buy_amount = min(
-                tD.default_buy_amount, tD.position_limit - position
-            )  # Simplified example
-            sell_amount = min(
-                tD.default_sell_amount, tD.position_limit + position
-            )  # Simplified example
+            buy_amount = min(tD.default_buy_amount, tD.position_limit - position)  # Simplified example
+            sell_amount = min(tD.default_sell_amount, tD.position_limit + position)  # Simplified example
 
             orders.append(Order(product, ask_price, buy_amount))
             orders.append(Order(product, bid_price, -sell_amount))
