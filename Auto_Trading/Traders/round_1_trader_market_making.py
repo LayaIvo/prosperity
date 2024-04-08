@@ -41,8 +41,10 @@ class Parameters:
 
     def __str__(self):
         return (
-            f"{self.product}_A{self.alpha}_BA{self.default_buy_amount}_IF{self.inventory_factor}_"
-            + "_".join(
+            f"{self.product[0]}A{self.alpha}"
+            + f"BA{self.default_buy_amount}"
+            + f"IF{self.inventory_factor}"
+            + "".join(
                 [k[0] + str(self.spread_factors[k]) for k in sorted(self.spread_factors.keys())]
             )
         )

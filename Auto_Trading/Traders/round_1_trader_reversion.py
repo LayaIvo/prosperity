@@ -11,6 +11,7 @@ products = ("AMETHYSTS", "STARFRUIT")
 class Parameters:
     def __init__(self, product):
         P = product[0]
+        self.product = product
         self.position_limit = 20
         self.observe = dict(A=-1, S=-1)[P]
         self.std_multiplier = dict(A=0.2, S=0.2)[P]
@@ -19,9 +20,11 @@ class Parameters:
         self.running_var = None
         self.mid_prices = list()
         print(product)
-        print(f"{self.alpha=}")
-        print(f"{self.std_multiplier=}")
+        print(f"{self.alpha=} {self.std_multiplier=}")
         return
+
+    def __str__(self):
+        return f"{self.product[0]}A{self.alpha}SM{self.std_multiplier}"
 
 
 class Trader:
