@@ -9,14 +9,18 @@ products = ("AMETHYSTS", "STARFRUIT")
 
 
 class Parameters:
-    def __init__(self, p):
-        self.std_multiplier = 0.2
+    def __init__(self, product):
+        P = product[0]
         self.position_limit = 20
-        self.observe = 10
-        self.alpha = 0.05 if p == "AMETHYSTS" else 0.15
+        self.observe = dict(A=-1, S=-1)[P]
+        self.std_multiplier = dict(A=0.2, S=0.2)[P]
+        self.alpha = dict(A=0.15, S=0.15)[P]
         self.running_mean = None
         self.running_var = None
         self.mid_prices = list()
+        print(product)
+        print(f"{self.alpha=}")
+        print(f"{self.std_multiplier=}")
         return
 
 
@@ -33,36 +37,47 @@ class Trader:
 
         result = dict()
         for product in products:
-            orders = []
 
             tD = traderData[product]
             order_book = state.order_depths[product]
 
+            # Gather data if we are in observation phase
+
             ask = min(order_book.sell_orders, default=None)
             bid = max(order_book.buy_orders, default=None)
 
-            # gather data if we are still in the observation phase
             if tD.observe:
                 self.gather_data(tD, ask, bid)
                 continue
+            else:
+                # update running mean and variance
+                self.update_running_mean_var(tD, ask, bid)
+
+            # Trading
+
+            orders = []
 
             position = state.position.get(product, 0)
             std_factor = tD.std_multiplier * math.sqrt(tD.running_var)
 
-            if ask and ask < tD.running_mean - std_factor:
-                ask_amount = -order_book.sell_orders[ask]
-                buy_amount = min(ask_amount, tD.position_limit - position)
-                if buy_amount:
-                    orders.append(Order(product, ask, buy_amount))
+            buy_available = tD.position_limit - position
+            for ask in sorted(order_book.sell_orders):
+                if ask < tD.running_mean - std_factor:
+                    ask_amount = -order_book.sell_orders[ask]
+                    buy_amount = min(ask_amount, buy_available)
+                    buy_available -= buy_amount
+                    if buy_amount:
+                        orders.append(Order(product, ask, buy_amount))
 
-            if bid and bid > tD.running_mean + std_factor:
-                bid_amount = order_book.buy_orders[bid]
-                sell_amount = min(bid_amount, tD.position_limit + position)
-                if sell_amount:
-                    orders.append(Order(product, bid, -sell_amount))
+            sell_available = tD.position_limit + position
+            for bid in sorted(order_book.buy_orders, reverse=True):
+                if bid > tD.running_mean + std_factor:
+                    bid_amount = order_book.buy_orders[bid]
+                    sell_amount = min(bid_amount, sell_available)
+                    sell_available -= sell_amount
+                    if sell_amount:
+                        orders.append(Order(product, bid, -sell_amount))
 
-            # update running mean and variance
-            self.update_running_mean_var(tD, ask, bid)
             result[product] = orders
 
         return result, 0, jp.encode(traderData, keys=True)

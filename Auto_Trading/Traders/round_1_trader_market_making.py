@@ -19,10 +19,10 @@ class Parameters:
         self.default_sell_amount = 5
         self.target_inventory = 0
         # if product == "AMETHYSTS" else 0
-        self.inventory_factor = 0.1
+        self.inventory_factor = 0
         self.spread_factors = dict(
             base=0,
-            deviation=1,
+            deviation=0.2,
             volatility=0,
             liquidity=0,
             imbalance=0,
@@ -30,6 +30,13 @@ class Parameters:
         self.running_mean = None
         self.running_var = None
         self.mid_prices = list()
+        print(product)
+        print(
+            f"{self.alpha=} {self.default_buy_amount=}"
+            " {self.default_sell_amount=}"
+            " {self.inventory_factor=}"
+            " {self.spread_factors=}"
+        )
         return
 
 
@@ -41,6 +48,8 @@ class Trader:
     def run(self, state):
         if not state.traderData:
             traderData = {product: Parameters(product) for product in products}
+            print("Init")
+            print(traderData)
         else:
             traderData = jp.decode(state.traderData, keys=True)
 
@@ -72,8 +81,8 @@ class Trader:
             # Adjust this factor as needed
             inventory_adjustment = (position - tD.target_inventory) * tD.inventory_factor
 
-            bid_price = round(tD.running_mean - (dynamic_spread / 2) - inventory_adjustment)
-            ask_price = round(tD.running_mean + (dynamic_spread / 2) - inventory_adjustment)
+            bid_price = round(tD.running_mean - dynamic_spread - inventory_adjustment)
+            ask_price = round(tD.running_mean + dynamic_spread - inventory_adjustment)
 
             # Ensure orders respect position limits
             buy_amount = min(tD.default_buy_amount, tD.position_limit - position)
