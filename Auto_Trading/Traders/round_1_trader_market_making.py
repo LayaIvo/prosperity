@@ -25,10 +25,18 @@ class Parameters:
             volatility=0.5,
             liquidity=0.05,
             imbalance=0.05,
+
         )
         self.running_mean = None
         self.running_var = None
         self.mid_prices = list()
+        print(product)
+        print(
+            f"{self.alpha=} {self.default_buy_amount=}"
+            " {self.default_sell_amount=}"
+            " {self.inventory_factor=}"
+            " {self.spread_factors=}"
+        )
         return
 
 
@@ -39,9 +47,9 @@ class Trader:
 
     def run(self, state):
         if not state.traderData:
-            traderData = {
-                product: Parameters(product) for product in products
-            }
+            traderData = {product: Parameters(product) for product in products}
+            print("Init")
+            print(traderData)
         else:
             traderData = jp.decode(state.traderData, keys=True)
 
@@ -73,12 +81,12 @@ class Trader:
             # Adjust this factor as needed
             inventory_adjustment = (position - tD.target_inventory) * tD.inventory_factor
 
-            bid_price = round(tD.running_mean - (dynamic_spread / 2) - inventory_adjustment)
-            ask_price = round(tD.running_mean + (dynamic_spread / 2) - inventory_adjustment)
+            bid_price = round(tD.running_mean - dynamic_spread - inventory_adjustment)
+            ask_price = round(tD.running_mean + dynamic_spread - inventory_adjustment)
 
             # Ensure orders respect position limits
-            buy_amount = min(tD.default_buy_amount, tD.position_limit - position)  # Simplified example
-            sell_amount = min(tD.default_sell_amount, tD.position_limit + position)  # Simplified example
+            buy_amount = min(tD.default_buy_amount, tD.position_limit - position)
+            sell_amount = min(tD.default_sell_amount, tD.position_limit + position)
 
             orders.append(Order(product, ask_price, buy_amount))
             orders.append(Order(product, bid_price, -sell_amount))
@@ -106,20 +114,15 @@ class Trader:
             ask = ask if ask else tD.running_mean
             bid = bid if bid else tD.running_mean
             mid_price = (ask + bid) / 2
-            tD.running_mean = (
-                tD.alpha * mid_price + (1 - tD.alpha) * tD.running_mean
-            )
+            tD.running_mean = tD.alpha * mid_price + (1 - tD.alpha) * tD.running_mean
             tD.running_var = (
-                tD.alpha * (mid_price - tD.running_mean) ** 2
-                + (1 - tD.alpha) * tD.running_var
+                tD.alpha * (mid_price - tD.running_mean) ** 2 + (1 - tD.alpha) * tD.running_var
             )
         return
 
     def calculate_spread(self, tD, order_book, market_trades, own_trades):
         recent_prices = [trade.price for trade in market_trades + own_trades]
-        recent_volumes = [
-            trade.quantity for trade in market_trades + own_trades
-        ]
+        recent_volumes = [trade.quantity for trade in market_trades + own_trades]
 
         deviation = math.sqrt(tD.running_var)
 
@@ -131,9 +134,7 @@ class Trader:
 
         # Assess market depth imbalance
         total_buy_orders = sum(order_book.buy_orders.values())
-        total_sell_orders = sum(
-            -amount for amount in order_book.sell_orders.values()
-        )
+        total_sell_orders = sum(-amount for amount in order_book.sell_orders.values())
 
         market_imbalance = abs(total_buy_orders - total_sell_orders) / (
             total_buy_orders + total_sell_orders
