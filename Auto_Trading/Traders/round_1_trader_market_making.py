@@ -12,16 +12,16 @@ products = ("AMETHYSTS", "STARFRUIT")
 
 class Parameters:
     def __init__(self, product):
-        self.std_multiplier = 0.5 if product == "AMETHYSTS" else 0.6
+        self.std_multiplier = 0.5 if product == "AMETHYSTS" else 0.5
         self.position_limit = 20
         self.observe = 10
         self.alpha = 0.1
         self.running_mean = None
         self.running_var = None
         self.mid_prices = list()
-        self.target_inventory = 0 if product == "AMETHYSTS" else 5
-        self.default_buy = 10
-        self.default_sell = 10
+        self.target_inventory = 0 if product == "AMETHYSTS" else 0
+        self.default_buy = 1
+        self.default_sell = 1
         return
 
 
@@ -54,10 +54,15 @@ class Trader:
                 continue
 
             position = state.position.get(product, 0)
-            std_factor = tD.std_multiplier * math.sqrt(tD.running_var)
 
-            dynamic_spread = std_factor
-            # self.calculate_spread(product, state)  # TODO
+            dynamic_spread = math.sqrt(tD.running_var)
+            print(dynamic_spread)
+            # dynamic_spread = self.calculate_spread(
+            #     tD,
+            #     order_book,
+            #     state.market_trades[product],
+            #     state.own_trades[product],
+            # )
 
             # Adjust this factor as needed
             inventory_adjustment = (position - tD.target_inventory) * 0.05
@@ -78,9 +83,7 @@ class Trader:
             )  # Simplified example
 
             orders.append(Order(product, ask_price, buy_amount))
-
             orders.append(Order(product, bid_price, -sell_amount))
-    
 
             # update running mean and variance
             self.update_running_mean_var(tD, ask, bid)
@@ -114,16 +117,14 @@ class Trader:
             )
         return
 
-    def calculate_spread(self, product, state):
+    def calculate_spread(self, traderData, order_book):
         """
         Calculate the spread based on volatility, liquidity, and market depth.
 
-        :param order_depth: An OrderDepth instance for the product.
         :param recent_prices: A list of recent prices for the product.
         :param recent_volumes: A list of recent trade volumes for the product.
         :return: A calculated spread value.
         """
-        order_depth = state.order_depths[product]
         recent_prices = [
             trade.price for trade in state.market_trades[product]
         ]
@@ -138,9 +139,9 @@ class Trader:
         liquidity = np.mean(recent_volumes)
 
         # Assess market depth imbalance
-        total_buy_orders = sum(order_depth.buy_orders.values())
+        total_buy_orders = sum(order_book.buy_orders.values())
         total_sell_orders = sum(
-            -amount for amount in order_depth.sell_orders.values()
+            -amount for amount in order_book.sell_orders.values()
         )
         market_imbalance = abs(total_buy_orders - total_sell_orders) / (
             total_buy_orders + total_sell_orders
