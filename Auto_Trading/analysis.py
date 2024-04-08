@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-df = pd.read_csv("Data/prices_round_1_day_-2.csv", sep=";")
+df = pd.read_csv("Logs/round_1-round_0_trader.csv", sep=";")
 
 products = df["product"].unique()
 inds = {P: df["product"] == P for P in products}
