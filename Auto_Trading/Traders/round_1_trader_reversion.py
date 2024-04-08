@@ -10,12 +10,15 @@ products = ("AMETHYSTS", "STARFRUIT")
 
 class Parameters:
     def __init__(self, product):
+        # best value A=834  S=717
+        # best alpha A=0.15 S=0.2
+        # best std   A=0.2  S=0.15
         P = product[0]
         self.product = product
         self.position_limit = 20
-        self.observe = dict(A=-1, S=-1)[P]
-        self.std_multiplier = dict(A=0.2, S=0.2)[P]
-        self.alpha = dict(A=0.15, S=0.15)[P]
+        self.observe = dict(A=10, S=10)[P]
+        self.alpha = dict(A=0.15, S=0.2)[P]
+        self.std_multiplier = dict(A=0.2, S=0.15)[P]
         self.running_mean = None
         self.running_var = None
         self.mid_prices = list()
