@@ -78,7 +78,9 @@ class Trader:
             )  # Simplified example
 
             orders.append(Order(product, ask_price, buy_amount))
-            orders.append(Order(product, bid_price, sell_amount))
+
+            orders.append(Order(product, bid_price, -sell_amount))
+    
 
             # update running mean and variance
             self.update_running_mean_var(tD, ask, bid)
