@@ -64,8 +64,8 @@ class Trader:
             dynamic_spread = self.calculate_spread(
                 tD,
                 order_book,
-                state.market_trades[product],
-                state.own_trades[product],
+                state.market_trades.get(product, []),
+                state.own_trades.get(product, []),
             )
             print(f"{dynamic_spread=}")
 
