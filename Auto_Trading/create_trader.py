@@ -2,13 +2,13 @@
 
 from pathlib import Path
 
-from Traders import round_1_trader_market_making, round_1_trader_reversion
+from Traders import round_1_trader_market_making, round_1_trader_reversion, round_2_trader
 
-product = "STARFRUIT"
+product = "AMETHYSTS"
 
-params = round_1_trader_reversion.Parameters(product)
+params = round_2_trader.Parameters(product)
 
-file = Path("Traders/round_1_trader_reversion.py")
+file = Path("Traders/round_2_trader.py")
 
 new_file = file.parent / "labeled" / (str(params) + ".py")
 
