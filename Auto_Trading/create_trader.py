@@ -12,7 +12,7 @@ if len(sys.argv) == 2 and sys.argv[1] == "clear":
     for file in folder.glob("*.py"):
         file.unlink()
 else:
-    product = "STARFRUIT"
+    product = "ORCHIDS"
 
     params = round_2_trader.Parameters(product)
 
