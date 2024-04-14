@@ -2,7 +2,7 @@
 
 import random as rd
 
-from Traders import round_0_trader, round_1_trader_market_making
+from Traders import round_0_trader, round_1_trader_market_making, round_2_trader
 
 import datamodel as dm
 
@@ -12,54 +12,44 @@ import matplotlib.pyplot as plt
 
 
 def main():
-    days = (-2, -1, 0)
-    Round = 1
+    days = (-1, 0, 1)
+    Round = 2
 
-    full_df = pd.concat(
-        [
-            pd.read_csv(f"Data/prices_round_{Round}_day_{day}.csv", sep=";")
-            for day in days
-        ]
+    df = pd.concat(
+        [pd.read_csv(f"Data/prices_round_{Round}_day_{day}.csv", sep=";") for day in days]
     )
 
-    dfs = {product: df for product, df in full_df.groupby("product")}
+    # dfs = {product: df for product, df in full_df.groupby("product")}
 
-    products = tuple(dfs.keys())
+    product = "ORCHIDS"
 
     # trader = round_0_trader.Trader()
-    trader = round_1_trader_market_making.Trader()
+    # trader = round_1_trader_market_making.Trader()
+    trader = round_2_trader.Trader()
 
-    profit = {product: [0] for product in products}
+    # profit = {product: [0] for product in products}
+    profit = [0]
+    pos = 0
 
-    td = ""
-    for _ in range(50):
-        ods = dict()
-        for a in products:
-            OD = dm.OrderDepth()
-            OD.buy_orders = {rd.randint(10, 20): rd.randint(1, 4)}
-            OD.sell_orders = {rd.randint(5, 12): -rd.randint(1, 3)}
-            ods[a] = OD
-
-        TS = dm.TradingState(
-            td,
-            _,
-            {},
-            ods,
-            {},
-            {},
-            {},
-            dict(),
-        )
-        orders, _, td = trader.run(TS)
-        for product in orders:
-            for order in orders[product]:
-                profit[product].append(
-                    profit[product][-1] - order.price * order.quantity
-                )
-    print(profit)
-    for product in products:
-        plt.plot(profit[product])
-        plt.savefig(f"Data/round_{Round}_{product}.pdf")
+    td = round_2_trader.Parameters(product)
+    for i, row in df.iterrows():
+        trader.buy_available = 100 - pos
+        trader.sell_available = 100 + pos
+        td.price.lags[0].mean = row["ORCHIDS"]
+        obs = dm.ConversionObservation(*[0] * 5, row["SUNLIGHT"], row["HUMIDITY"])
+        orders = trader.humidity_trading(td, obs)
+        prof = profit[-1]
+        q = 0
+        for order in orders:
+            q += order[1]
+            prof -= order[0] * order[1]
+        pos += q
+        profit.append(prof)
+        if q:
+            print(i, profit[-1], pos)
+    print(profit[-1], pos)
+    plt.plot(profit)
+    plt.savefig(f"Plots/round_{Round}.pdf")
     return
 
 
