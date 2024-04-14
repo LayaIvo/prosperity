@@ -10,39 +10,38 @@ products = ("AMETHYSTS", "STARFRUIT")
 
 class Parameters:
     def __init__(self, product):
-        # best value A=652  S=
-        # best alpha A=0.15 S=0.2
-        # best std   A=0.2  S=0.15
-        P = product[0]
         self.product = product
-        self.position_limit = 20
-        self.observe = dict(A=0, S=-1)[P]
-        self.alpha = dict(A=0.15, S=0.2)[P]
-        self.std_multiplier = dict(A=1, S=0.15)[P]
-        self.update = dict(A=False, S=True)[P]
-        self.running_mean = dict(A=10_000, S=None)[P]
-        self.running_var = dict(A=1, S=None)[P]
-        self.constant_orders = dict(
-            A={
-                10003: -20,
-                10002: -8,
-                10001: -2,
-                9999: 2,
-                9998: 8,
-                9997: 20,
-            },
-            S=dict(),
-        )[P]
+        if self.product == "AMETHYSTS":
+            self.position_limit = 20
+            self.observe = -1
+            self.alpha = 0  # best
+            self.std_multiplier = 0  # best
+            self.running_mean = 10_000  # best
+            self.running_var = 1
+            self.orders = {
+                4: -100,
+                -4: 100,
+            }  # best
+        elif self.product == "STARFRUIT":
+            self.position_limit = 20
+            self.observe = 10
+            self.alpha = 0.2
+            self.std_multiplier = 0.15
+            self.running_mean = None
+            self.running_var = None
+            self.orders = {
+                3: -100,
+                -3: 100,
+            }
+
         self.mid_prices = list()
         print(product)
         print(self)
         return
 
     def __str__(self):
-        CO = ".".join(
-            str(abs(self.constant_orders[p])) for p in sorted(self.constant_orders.keys())
-        )
-        return f"{self.product[0]}A{self.alpha}SM{self.std_multiplier}CO.{CO}"
+        Od = ",".join(str(p) + ":" + str(abs(self.orders[p])) for p in sorted(self.orders.keys()))
+        return f"{self.product[0]}A{self.alpha}SM{self.std_multiplier}Od{Od}"
 
 
 class Trader:
@@ -62,12 +61,11 @@ class Trader:
             tD = traderData[product]
             order_book = state.order_depths[product]
 
-            # Gather data if we are in observation phase
-
             ask = min(order_book.sell_orders, default=None)
             bid = max(order_book.buy_orders, default=None)
 
             if tD.observe:
+                # Gather data if we are in observation phase
                 self.gather_data(tD, ask, bid)
                 continue
             else:
@@ -88,19 +86,21 @@ class Trader:
                 if ask < tD.running_mean - std_factor:
                     ask_amount = -order_book.sell_orders[ask]
                     buy_amount = min(ask_amount, buy_available)
-                    buy_available -= buy_amount
                     if buy_amount:
+                        buy_available -= buy_amount
                         orders.append(Order(product, ask, buy_amount))
 
             for bid in sorted(order_book.buy_orders, reverse=True):
                 if bid > tD.running_mean + std_factor:
                     bid_amount = order_book.buy_orders[bid]
                     sell_amount = min(bid_amount, sell_available)
-                    sell_available -= sell_amount
                     if sell_amount:
+                        sell_available -= sell_amount
                         orders.append(Order(product, bid, -sell_amount))
 
-            for price, amount in tD.constant_orders.items():
+            for price in sorted(tD.orders.keys(), key=abs):
+                amount = tD.orders[price]
+                price = round(tD.running_mean + price * math.sqrt(tD.running_var))
                 if amount > 0:
                     buy_amount = min(amount, buy_available)
                     if buy_amount:
@@ -126,10 +126,11 @@ class Trader:
             if not tD.observe:
                 tD.running_mean = stat.mean(tD.mid_prices)
                 tD.running_var = stat.variance(tD.mid_prices, tD.running_mean)
+                print(f"mean: {tD.running_mean}, var: {tD.running_var}")
         return
 
     def update_running_mean_var(self, tD, ask, bid):
-        if tD.update and (ask or bid):
+        if ask or bid:
             ask = ask if ask else tD.running_mean
             bid = bid if bid else tD.running_mean
             mid_price = (ask + bid) / 2
@@ -137,4 +138,5 @@ class Trader:
             tD.running_var = (
                 tD.alpha * (mid_price - tD.running_mean) ** 2 + (1 - tD.alpha) * tD.running_var
             )
+            print(f"mean: {tD.running_mean}, var: {tD.running_var}")
         return
