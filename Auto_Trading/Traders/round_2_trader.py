@@ -17,46 +17,45 @@ class Parameters:
         self.mid_prices = list()
         self.std_mult = 0
         self.momentum_mult = 0
+        self.str = ""
 
         if self.product == "AMETHYSTS":
-            # self.methods = ("mean_reversion", "market_making")
+            self.methods = ("mean_reversion", "market_making")
             self.position_limit = 20
             self.price = Fixed(10_000, 1)
             self.orders = {
                 4: -100,
                 -4: 100,
             }
-            self.str = f"S{self.std_mult}M{self.momentum_mult}"
         elif self.product == "STARFRUIT":
-            # self.methods = ("mean_reversion", "market_making")
+            self.methods = ("mean_reversion", "market_making")
             self.position_limit = 20
-            self.price = RunningMean([10, 20], 5)
-            self.std_mult = 0.2
+            self.price = RunningMean([8, 16], 8)
+            self.std_mult = 0.3
             self.momentum_mult = 0.3
             self.orders = {
-                3: -100,
-                -3: 100,
+                1: -100,
+                -1: 100,
             }
-            self.str = f"S{self.std_mult}M{self.momentum_mult}"
         elif self.product == "ORCHIDS":
             self.time = 0
-            self.methods = ("humidity_trading",)  # "mean_reversion", "market_making")
+            self.methods = ("humidity_trading", "mean_reversion", "market_making")
             self.position_limit = 100
             self.sunlight = None
             self.humidity = None
-            self.humidity_limits = (75, 80)
-            self.humidity_diff_limits = (0.01, -0.005)
-            self.portions = 5
-            self.price = RunningMean([20, 40], 10)
+            self.humidity_limits = (74, 80)
+            self.humidity_diff_limits = (16, 0)
+            self.portions = 1
+            self.price = RunningMean([10, 20], 10)
             str_h = ",".join(str(k) for k in self.humidity_limits)
             str_d = ",".join(str(k) for k in self.humidity_diff_limits)
-            self.std_mult = 0.2
-            self.momentum_mult = 0.3
+            self.std_mult = 0.4
+            self.momentum_mult = 0.4
             self.orders = {
-                4: -100,
-                -4: 100,
+                2.5: -5,
+                -3: 5,
             }
-            self.str = f"L{str_h}D{str_d}"
+            self.str = f"P{self.portions}L{str_h}D{str_d}"
 
         print(product)
         print(self)
@@ -65,13 +64,12 @@ class Parameters:
     def __str__(self):
         Od = ",".join(str(p) + ":" + str(abs(self.orders[p])) for p in sorted(self.orders.keys()))
         Od = "Od" + Od if Od else ""
-        return f"{self.product[0]}{self.str}{Od}"
+        return f"{self.product[0]}S{self.std_mult}M{self.momentum_mult}{self.str}{Od}"
 
 
 class Trader:
 
     def __init__(self):
-        self.time = 0
         self.std = None
         self.momentum = None
         self.buy_available = None
@@ -104,13 +102,17 @@ class Trader:
             self.momentum = tD.price.momentum * tD.momentum_mult
 
             orders = []
+            close = False
             for method in tD.methods:
                 if method == "mean_reversion":
                     orders += self.mean_reversion(tD, order_book)
                 elif method == "market_making":
                     orders += self.market_making(tD)
                 elif method == "humidity_trading":
-                    orders += self.humidity_trading(tD, obs)
+                    o, close = self.humidity_trading(tD, obs)
+                    orders += o
+                if close:
+                    break
 
             result[product] = [Order(product, *o) for o in orders]
 
@@ -154,9 +156,11 @@ class Trader:
     def humidity_trading(self, tD, obs):
         orders = []
         lims = tD.humidity_limits
-        dlims = tD.humidity_diff_limits
+        dlims = [dl / 1000 for dl in tD.humidity_diff_limits]
 
-        if tD.time > 9990:
+        close = False
+        if tD.time > 9960:
+            close = True
             position = tD.position_limit - self.buy_available
             if position:
                 orders.append((round(tD.price.mean), -position))
@@ -166,15 +170,15 @@ class Trader:
                 buy_amount = min(tD.portions, self.buy_available)
                 if buy_amount:
                     self.buy_available -= buy_amount
-                    orders.append((round(tD.price.mean), buy_amount))
+                    orders.append((round(tD.price.mean - 0.7 * self.std), buy_amount))
             elif humidity_diff < dlims[1] and obs.humidity > lims[1]:
                 sell_amount = min(tD.portions, self.sell_available)
                 if sell_amount:
                     self.sell_available -= sell_amount
-                    orders.append((round(tD.price.mean), -sell_amount))
+                    orders.append((round(tD.price.mean + 0.7 * self.std), -sell_amount))
         tD.humidity = obs.humidity
         tD.time += 1
-        return orders
+        return orders, close
 
 
 class Fixed:
