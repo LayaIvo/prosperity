@@ -4,7 +4,12 @@ import sys
 
 from pathlib import Path
 
-from Traders import round_1_trader_market_making, round_1_trader_reversion, round_2_trader
+from Traders import (
+    round_1_trader_market_making,
+    round_1_trader_reversion,
+    round_2_trader,
+    round_3_trader,
+)
 
 # clear folder
 if len(sys.argv) == 2 and sys.argv[1] == "clear":
@@ -12,11 +17,11 @@ if len(sys.argv) == 2 and sys.argv[1] == "clear":
     for file in folder.glob("*.py"):
         file.unlink()
 else:
-    product = "ORCHIDS"
+    product = "STARFRUIT"
 
-    params = round_2_trader.Parameters(product)
+    params = round_3_trader.Parameters(product)
 
-    file = Path("Traders/round_2_trader.py")
+    file = Path("Traders/round_3_trader.py")
 
     new_file = file.parent / "labeled" / (str(params) + ".py")
 

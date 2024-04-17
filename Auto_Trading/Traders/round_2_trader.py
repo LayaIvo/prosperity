@@ -14,7 +14,6 @@ class Parameters:
         self.product = product
         self.methods = ()
         self.orders = dict()
-        self.mid_prices = list()
         self.std_mult = 0
         self.momentum_mult = 0
         self.str = ""
