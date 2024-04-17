@@ -20,6 +20,7 @@ else:
     product = "STARFRUIT"
 
     params = round_3_trader.Parameters(product)
+    print(params)
 
     file = Path("Traders/round_3_trader.py")
 

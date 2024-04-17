@@ -17,48 +17,49 @@ class Parameters:
             self.position_limit = 20
             self.price = Fixed(mean=10_000, var=1)
             self.methods = [
-                MeanReversion(
-                    quantity=100,
-                    std_factor=0,
-                    momentum_factor=0,
-                ),
-                MarketMaking(
-                    orders={4: -100, -4: 100},
-                    momentum_factor=0,
-                ),
+                # MeanReversion(
+                #     quantity=100,
+                #     std_factor=0,
+                #     momentum_factor=0,
+                # ),
+                # MarketMaking(
+                #     orders={4: -100, -4: 100},
+                #     momentum_factor=0,
+                # ),
             ]
         elif self.product == "STARFRUIT":
             self.position_limit = 20
-            self.price = MovingAverage(lags=[10, 20], momentum_lag=10)
+            self.price = MovingAverage(lags=[8, 20], momentum_lag=3)
             self.methods = [
                 MeanReversion(
                     quantity=100,
-                    std_factor=0.3,
-                    momentum_factor=0.7,
+                    std_factor=0.2,
+                    momentum_factor=0.6,
                 ),
-                MarketMaking(
-                    orders={2: -100, -2: 100},
-                    momentum_factor=0.4,
-                ),
+                # MarketMaking(
+                #     orders={2: -100, -2: 100},
+                #     momentum_factor=0.4,
+                # ),
             ]
         elif self.product == "ORCHIDS":
             self.position_limit = 100
             self.price = MovingAverage(lags=[10, 20], momentum_lag=10)
-            self.methods = [
-                MeanReversion(
-                    quantity=5,
-                    std_factor=0.4,
-                    momentum_factor=0.4,
-                ),
-                MarketMaking(
-                    orders={3: -5, -3: 5},
-                    momentum_factor=0.4,
-                ),
-            ]
+            # self.methods = [
+            #     MeanReversion(
+            #         quantity=5,
+            #         std_factor=0.4,
+            #         momentum_factor=0.4,
+            #     ),
+            #     MarketMaking(
+            #         orders={3: -5, -3: 5},
+            #         momentum_factor=0.4,
+            #     ),
+            # ]
         return
 
     def __str__(self):
         ST = self.product[0]
+        ST += str(self.price)
         for method in self.methods:
             ST += f"{str(method)}"
         return ST
@@ -170,6 +171,9 @@ class Fixed:
     def update(self, value):
         return
 
+    def __str__(self):
+        return f"FX{self.mean}"
+
 
 class Running:
     def __init__(self, lag, mean=None, var=None):
@@ -192,27 +196,30 @@ class Running:
 
 class MovingAverage:
     def __init__(self, lags, momentum_lag):
-        self.lags = [Running(lag) for lag in lags]
+        self._means = [Running(lag) for lag in lags]
         self._momentum = Running(momentum_lag)
         return
 
     @property
     def mean(self):
-        return self.lags[0].mean
+        return self._means[0].mean
 
     @property
     def var(self):
-        return self.lags[0].var
+        return self._means[0].var
 
     @property
     def momentum(self):
         return self._momentum.mean
 
     def update(self, value):
-        for lag in self.lags:
+        for lag in self._means:
             lag.update(value)
-        self._momentum.update(self.lags[0].mean - self.lags[1].mean)
+        self._momentum.update(self._means[0].mean - self._means[1].mean)
         return
+
+    def __str__(self):
+        return f"MA{self._means[0].lag}M{self._momentum.lag}"
 
 
 def buy(price, std, mom):
