@@ -4,7 +4,15 @@ import math
 
 from datamodel import Order
 
-products = ("AMETHYSTS", "STARFRUIT", "ORCHIDS")
+products = (
+    "AMETHYSTS",
+    "STARFRUIT",
+    "ORCHIDS",
+    "GIFT_BASKET",
+    "CHOCOLATE",
+    "STRAWBERRIES",
+    "ROSES",
+)
 
 
 class Parameters:
@@ -15,46 +23,114 @@ class Parameters:
 
         if self.product == "AMETHYSTS":
             self.position_limit = 20
-            self.price = Fixed(mean=10_000, var=1)
-            self.methods = [
-                # MeanReversion(
-                #     quantity=100,
-                #     std_factor=0,
-                #     momentum_factor=0,
-                # ),
-                # MarketMaking(
-                #     orders={4: -100, -4: 100},
-                #     momentum_factor=0,
-                # ),
-            ]
-        elif self.product == "STARFRUIT":
-            self.position_limit = 20
-            self.price = MovingAverage(lags=[8, 20], momentum_lag=3)
+            self.price = Fixed(mean=10_000, var=0)
             self.methods = [
                 MeanReversion(
                     quantity=100,
-                    std_factor=0.2,
+                    std_factor=0,
+                    momentum_factor=0,
+                ),
+                MarketMaking(
+                    orders={4: -100, -4: 100},
+                    momentum_factor=0,
+                ),
+            ]
+        elif self.product == "STARFRUIT":
+            self.position_limit = 20
+            self.price = MovingAverage(
+                lags=(4, 20), var_lags=(8, 40), momentum_lag=2
+            )
+            self.methods = [
+                MeanReversion(
+                    quantity=100,
+                    std_factor=0.3,
                     momentum_factor=0.6,
                 ),
-                # MarketMaking(
-                #     orders={2: -100, -2: 100},
-                #     momentum_factor=0.4,
-                # ),
+                MarketMaking(
+                    orders={2: -100, -2: 100},
+                    momentum_factor=0.6,
+                ),
             ]
         elif self.product == "ORCHIDS":
             self.position_limit = 100
-            self.price = MovingAverage(lags=[10, 20], momentum_lag=10)
-            # self.methods = [
-            #     MeanReversion(
-            #         quantity=5,
-            #         std_factor=0.4,
-            #         momentum_factor=0.4,
-            #     ),
-            #     MarketMaking(
-            #         orders={3: -5, -3: 5},
-            #         momentum_factor=0.4,
-            #     ),
-            # ]
+            self.price = MovingAverage(
+                lags=(12, 24), var_lags=(24, 48), momentum_lag=3
+            )
+            self.methods = [
+                # MeanReversion(
+                #     quantity=5,
+                #     std_factor=0.2,
+                #     momentum_factor=1,
+                # ),
+                # MarketMaking(
+                #     orders={3: -5, -3: 5},
+                #     momentum_factor=0.4,
+                # ),
+            ]
+        elif self.product == "GIFT_BASKET":
+            self.position_limit = 60
+            self.price = MovingAverage(
+                lags=(3, 10), var_lags=(3, 10), momentum_lag=3
+            )
+            self.methods = [
+                # MeanReversion(
+                #     quantity=100,
+                #     std_factor=1,
+                #     momentum_factor=0,
+                # ),
+                # MarketMaking(
+                #     orders={2: -100, -2: 100},
+                #     momentum_factor=0.6,
+                # ),
+            ]
+        elif self.product == "CHOCOLATE":
+            self.position_limit = 250
+            self.price = MovingAverage(
+                lags=(3, 10), var_lags=(3, 10), momentum_lag=3
+            )
+            self.methods = [
+                # MeanReversion(
+                #     quantity=100,
+                #     std_factor=0.2,
+                #     momentum_factor=0.6,
+                # ),
+                # MarketMaking(
+                #     orders={2: -100, -2: 100},
+                #     momentum_factor=0.6,
+                # ),
+            ]
+        elif self.product == "STRAWBERRIES":
+            self.position_limit = 350
+            self.price = MovingAverage(
+                lags=(3, 10), var_lags=(3, 10), momentum_lag=3
+            )
+            self.methods = [
+                # MeanReversion(
+                #     quantity=100,
+                #     std_factor=0.2,
+                #     momentum_factor=0.6,
+                # ),
+                # MarketMaking(
+                #     orders={2: -100, -2: 100},
+                #     momentum_factor=0.6,
+                # ),
+            ]
+        elif self.product == "ROSES":
+            self.position_limit = 60
+            self.price = MovingAverage(
+                lags=[(2, 4), (16, 32)], momentum_lag=(3, 6)
+            )
+            self.methods = [
+                # MeanReversion(
+                #     quantity=100,
+                #     std_factor=0.2,
+                #     momentum_factor=0.6,
+                # ),
+                # MarketMaking(
+                #     orders={2: -100, -2: 100},
+                #     momentum_factor=0.6,
+                # ),
+            ]
         return
 
     def __str__(self):
@@ -88,14 +164,17 @@ class Trader:
 
             bid = max(self.order_book[P].buy_orders, default=None)
             ask = min(self.order_book[P].sell_orders, default=None)
-            self.tD[P].price.update(mid_price(bid, ask))
+            mean = self.tD[P].price.mean
+
+            self.tD[P].price.update(mid_price(bid, ask, mean))
 
         # Execute the trading strategies
         result = dict()
         for P in products:
             orders = []
             for method in self.tD[P].methods:
-                o, close = getattr(self, method.name)(P, method)
+                function = getattr(self, method.name)
+                o, close = function(P, method)
                 orders += o
                 if close:
                     break
@@ -176,8 +255,9 @@ class Fixed:
 
 
 class Running:
-    def __init__(self, lag, mean=None, var=None):
+    def __init__(self, lag, var_lag, mean=None, var=None):
         self.lag = lag
+        self.var_lag = var_lag
         self.mean = mean
         self.var = var
         return
@@ -189,15 +269,16 @@ class Running:
         elif value is not None:
             self.mean = self.mean + (value - self.mean) / self.lag
             self.var = (
-                self.var + ((value - self.mean) ** 2 - self.var) / self.lag
+                self.var + ((value - self.mean) ** 2 - self.var) / self.var_lag
             )
         return
 
 
 class MovingAverage:
-    def __init__(self, lags, momentum_lag):
-        self._means = [Running(lag) for lag in lags]
-        self._momentum = Running(momentum_lag)
+    def __init__(self, lags, var_lags, momentum_lag, momentum_inds=(0, 1)):
+        self._means = [Running(*lag) for lag in zip(lags, var_lags)]
+        self._momentum = Running(momentum_lag, 0)
+        self._momentum_inds = momentum_inds
         return
 
     @property
@@ -215,11 +296,20 @@ class MovingAverage:
     def update(self, value):
         for lag in self._means:
             lag.update(value)
-        self._momentum.update(self._means[0].mean - self._means[1].mean)
+        i = self._momentum_inds
+        means = self._means
+        self._momentum.update(means[i[0]].mean - means[i[1]].mean)
         return
 
     def __str__(self):
-        return f"MA{self._means[0].lag}M{self._momentum.lag}"
+        means = self._means[0]
+        return f"MA{means.lag}-{means.var_lag}M{self._momentum.lag}"
+
+
+def mid_price(bid, ask, mean):
+    bid = bid if bid else mean
+    ask = ask if ask else mean
+    return (bid + ask) / 2
 
 
 def buy(price, std, mom):
@@ -228,14 +318,6 @@ def buy(price, std, mom):
 
 def sell(price, std, mom):
     return round(price.mean + math.sqrt(price.var) * std + price.momentum * mom)
-
-
-def mid_price(bid, ask):
-    if bid or ask:
-        bid = bid if bid else ask
-        ask = ask if ask else bid
-        return (bid + ask) / 2
-    return
 
 
 class MeanReversion:
