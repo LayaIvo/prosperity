@@ -88,7 +88,7 @@ class Parameters:
             }
             self.str = f"S{self.std_mult}M{self.momentum_mult}"
         elif self.product == "GIFT_BASKET":
-            self.methods = ("arbitrage")
+            self.methods = ("mean_reversion_basket")
             self.position_limit = 250
             self.price = RunningMean([10, 20], 5)
             self.std_mult = 0.2
@@ -199,12 +199,12 @@ class Trader:
                     orders.append(Order(product, price, -sell_amount))
         return orders, False
 
-    def mean_reversion_basket(self, product = "GIFT_BASKET" ,traderData, order_book):
+    def mean_reversion_basket(self, product, params):
         orders = []
-        tD_gift = traderData["GIFT_BASKET"]
-        tD_St = traderData["STRAWBERRIES"]
-        tD_Ch = traderData["CHOCOLATE"]
-        tD_Ro = traderData["ROSES"]
+        tD_gift = self.tD["GIFT_BASKET"]
+        tD_St = self.tD["STRAWBERRIES"]
+        tD_Ch = self.tD["CHOCOLATE"]
+        tD_Ro = self.tD["ROSES"]
         
         weighted_sum = (tD_Ch.price.mean * 4 + tD_St.price.mean * 6 + tD_Ro.price.mean * 1)
 
@@ -239,6 +239,7 @@ class Trader:
                     limit -= sell_amount
                     orders.append(Order(product, bid, -sell_amount))
         return orders, False
+    
 
     def arbitrage(self, traderData, order_book):
         orders = []

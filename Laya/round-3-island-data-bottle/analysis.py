@@ -7,8 +7,8 @@ import statsmodels.api as sm
 from statsmodels.tsa.stattools import coint
 
 
-
-file_path = 'C:/Users/ghodrati/Documents/GitHub/prosperity/Laya/round-3-island-data-bottle/trades_round_3_day_0_nn.csv'
+file_path = 'C:/Users/laya7/Documents/GitHub/prosperity/Laya/round-3-island-data-bottle/trades_round_3_day_0_nn.csv'
+# file_path = 'C:/Users/ghodrati/Documents/GitHub/prosperity/Laya/round-3-island-data-bottle/trades_round_3_day_0_nn.csv'
 
 
 # Load the data
@@ -74,6 +74,13 @@ merged_emas['difference'] = merged_emas['ema'] - merged_emas['weighted_ema']
 
 # Calculate the difference
 merged_emas['difference'] = merged_emas['ema'] - merged_emas['weighted_ema']
+plt.figure(figsize=(14, 7))
+plt.plot(merged_emas['timestamp'], merged_emas['difference'] )
+plt.xlabel('Timestamp')
+plt.ylabel('Exponential Moving Average Price')
+plt.legend()
+plt.grid(True)
+plt.show()
 
 # Augmented Dickey-Fuller test
 adf_result = adfuller(merged_emas['difference'].dropna())
@@ -86,18 +93,18 @@ print('Critical Values:', adf_result[4])
 
 
 # Calculate correlations
-correlations = pivot_data[['CHOCOLATE', 'ROSES', 'STRAWBERRIES']].corr()
+correlations = pivot_data[['CHOCOLATE', 'ROSES', 'STRAWBERRIES','GIFT_BASKET']].corr()
 print("Correlation Matrix:\n", correlations)
 
-# Check for cointegration
-cointegration_results = {}
-products = ['CHOCOLATE', 'ROSES', 'STRAWBERRIES']
+# # Check for cointegration
+# cointegration_results = {}
+# products = ['CHOCOLATE', 'ROSES', 'STRAWBERRIES']
 
-for i in range(len(products)):
-    for j in range(i+1, len(products)):
-        score, p_value, _ = coint(pivot_data[products[i]], pivot_data[products[j]])
-        cointegration_results[f'{products[i]} and {products[j]}'] = {'score': score, 'p-value': p_value}
+# for i in range(len(products)):
+#     for j in range(i+1, len(products)):
+#         score, p_value, _ = coint(pivot_data[products[i]], pivot_data[products[j]])
+#         cointegration_results[f'{products[i]} and {products[j]}'] = {'score': score, 'p-value': p_value}
 
-print("Cointegration Test Results:")
-for pair, results in cointegration_results.items():
-    print(f"{pair}: Score = {results['score']}, p-value = {results['p-value']}")
+# print("Cointegration Test Results:")
+# for pair, results in cointegration_results.items():
+#     print(f"{pair}: Score = {results['score']}, p-value = {results['p-value']}")
