@@ -17,10 +17,9 @@ if len(sys.argv) == 2 and sys.argv[1] == "clear":
     for file in folder.glob("*.py"):
         file.unlink()
 else:
-    product = "STARFRUIT"
+    product = "GIFT_BASKET"
 
     params = round_3_trader.Parameters(product)
-    print(params)
 
     file = Path("Traders/round_3_trader.py")
 
